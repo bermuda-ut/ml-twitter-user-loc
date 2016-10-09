@@ -1,0 +1,294 @@
+\documentclass[11pt]{article}
+\usepackage{colacl}
+\usepackage{array,booktabs}% http://ctan.org/pkg/{array,booktabs}
+\sloppy
+% no tabbed paragraphs
+\setlength{\parindent}{0pt}
+
+% title sec spacing
+\usepackage{titlesec}
+\titlespacing*{\section}
+{0pt}{5.5ex plus 1ex minus .2ex}{0.3ex plus .2ex}
+\titlespacing*{\subsection}
+{0pt}{4.5ex plus 1ex minus .2ex}{0.3ex plus .2ex}
+\titlespacing*{\subsubsection}
+{0pt}{2.5ex plus 1ex minus .2ex}{0.3ex plus .2ex}
+
+% fix title sec
+\usepackage{etoolbox}
+
+\makeatletter
+\patchcmd{\ttlh@hang}{\parindent\z@}{\parindent\z@\leavevmode}{}{}
+\patchcmd{\ttlh@hang}{\noindent}{}{}{}
+\makeatother
+
+\title{Classification of Tweets according to Geographic Location with Machine Learning}
+\author{ }%Max Lee 719577}
+
+
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+With increasing growth of data in terms of both volume and variety, finding patterns and relationships to understand the source (geographic location) of public views and opinions became extremely critical for various purposes.
+\end{abstract}
+
+\section{Introduction}
+Task was to classify each Tweet according to geographic location of where it was made. Separated training and development data were provided. Each instance had Tweet ID, User ID, Tweet Content and Location Class as attributes.\newline
+
+In this report, combination of 
+SciKit Learn\footnote{http://scikit-learn.org/ Machine Learning Libarary for Python}
+and users’ Tweets from 2008 was used to determine which US city each tweet was being sent from. Zero-R and One-R were used as baseline measurements against Random Forest and Na{\"i}ve Bays. The report will discuss the effectiveness of such classifiers and feature sets used.
+
+\section{Feature Engineering}
+Although optional, custom features were engineered.
+
+\subsection{Features}
+The following sections show the features used. A group of features from here were used to model the tweets.
+
+\subsubsection{Related Words Vector}
+Related words were extracted from Semantic Link\footnote{http://semantic-link.com/} and formed a group of words (see Table~\ref{table1}). Every time a word in the group was encountered, it contributed a value of 1 to the resulting vector. For example, text 'boston astros san sd' would be
+$\langle$1, 1, 2, ...$\rangle$.\newline
+
+This feature was used after the assumption that people different cities use set words that are different from the others. This feature models their words used.
+
+\begin{table}[h]
+\begin{center}
+	\begin{tabular}{|>{\centering\arraybackslash}m{0.6in}|m{2in}|}
+
+      \hline
+      \textbf{Group} & \textbf{Related Words}\\
+      \hline
+      \textbf{Boston} & boston, celtics, bruins, fenway, berklee, sox, roxbury, mbta ...\\
+      \hline
+      \textbf{Houston} & houston, astros, texans, oilers, galveston, tx, cougars, nutt ... \\
+      \hline
+      \textbf{Seattle} & diego, san, chargers, sd, sdut, sandiego, baja, obispo ...\\
+      \hline
+      \vdots & \vdots\\
+
+	\end{tabular}
+\caption{Example of related words according to the classes}\label{table1}
+\end{center}
+\end{table}
+
+\subsubsection{Topic Words Vector}
+Selection of 'topics' were chosen manually and 5 synonyms were chosen as a group of words for that 'topic'. The synonyms were extracted from 
+NLTK\footnote{http://www.nltk.org/}
+and vector formulation worked exactly like Related Words Count.\newline
+
+This feature was used after the assumption that people different cities Tweet about specific group of common words that are different from the others. This feature models their talking topics.
+
+\subsubsection{Sentence Structure Vector}
+Tweet's sentence structure was examined using NLTK's tagger.
+A vector representation was built according to the tag. To allow position to be considered, when adding into the vector, the value added was a prime number for the position. For example,\newline
+
+"They refuse to permit us to obtain the refuse permit"\newline
+
+would be processed into\newline
+
+('They', 'PRP'), ('refuse', 'VBP'), ('to', 'TO'), ('permit', 'VB'), ('us', 'PRP'),
+('to', 'TO'), ('obtain', 'VB'), ('the', 'DT'), ('refuse', 'NN'), ('permit', 'NN')\newline
+
+Then, if vector format was
+\[
+\langle PRP, VBP, TO, NN ...\rangle
+\]
+the vector formation would be
+\[
+\langle 2 + 11, 3, 5 + 13, 21 + 23, ...\rangle = \langle 13, 3, 18, 44, ...\rangle
+\]
+
+This feature was used after the assumption that people different cities use specific patterned sentence structure. This feature models their sentence structure itself.
+
+\subsubsection{TF-IDF Similarity Vector}
+Using the training data provided, Tweets were arranged according to their classes. Then, similarity score was calculated using sum of TF-IDF Similarity score against the Tweets in the class. IDF is calculated based on all the Tweets made. Then, for each word in the Tweet, the frequency is multiplied by IDF to calculate it's similarity with all the previous Tweets in a city. Then, TF-IDF score is summed for final score for that city.\newline
+
+This feature was used after the assumption that training data set successfully represents all the possible Tweets that people normally send in a city. This feature models their similarity match with the Tweet history, therefore determining the city.
+
+\subsection{Feature Sets Used}
+\textbf{Set A}:
+\textit{Related Words Vector, Topic Words Vector}
+\newline
+This was the 'obvious' feature set that was the starting point for adding features.
+\newline
+
+\textbf{Set B}:
+\textit{Sentence Structure Vector}
+\newline
+This set was purely made to determine the performance of the feature. High performance of this feature would mean people use different sentence structure compared to other region.
+\newline
+
+\textbf{Set C}:
+\textit{TF-IDF Similarity Vector}
+\newline
+This set was purely made to determine the performance of the feature. High performance of this feature would mean people write similarly within the region and differ from others.
+\newline
+
+\textbf{Set D}:
+\textit{Related Words Vector, Topic Words Vector, Sentence Structure Vector}
+\newline
+This was set of relatively high performing features. This was, obviously, derived after previous sets.
+\newline
+
+Feature sets' performances were evaluated along with evaluation of classifiers' performances.
+
+\section{Classifier Evaluation Method}
+
+Holdout evaluation strategy was used, training the classifier with training data and evaluating the classifier with development data. This was used over cross-evaluation method since this allowed maximum learning with training data then evaluated on fresh, unlearned set to detect over-fitting.\newline
+
+Accuracy was calculated for each classifier against all sets.
+%\[
+%Accuracy = \frac{TP + TN}{TP + TN + FP + FN}
+%\]
+Accuracy was used over precision and F-Score since considering number of correct predictions over all would be a straight-forward answer to the performance of the classifier.
+
+ 
+\section{Classifiers}
+
+Multiple Classifiers from SciKit Learn were put under test. SVM was not used due to its slowness in learning.
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|>{\centering}m{0.3in}|>{\centering}m{0.5in}|>{\centering}m{0.5in}|>{\centering}m{0.5in}|>{\centering\arraybackslash}m{0.5in}|}
+	
+      \hline
+      \textbf{Set} & \textbf{0-R} & \textbf{1-R} & \textbf{NB} & \textbf{Forest}\\
+      \hline
+      \textbf{A} & 26.16\%	 & 26.16\%	 & 21.86\% 	& 30.42\%\\
+      \hline
+      \textbf{B} & 26.16\%	 & 26.16\%	 & 19.55\% 	& 26.16\%\\
+      \hline
+      \textbf{C} & 26.16\%	 & 19.23\%	 & 24.71\% 	& 24.00\%\\
+      \hline
+      \textbf{D} & 26.16\%	 & 26.16\%	 & 23.53\% 	& 30.37\%\\
+      \hline
+
+\end{tabular}
+\caption{Performance summary for each classifier against each feature sets.}\label{table4}
+\end{center}
+\end{table}
+
+\subsection{Zero-R}
+Zero-R classifies based on majority class in the data set. It has almost no ability to predict however provides baseline for comparison for other classifiers, i.e. if the other classifier has lower accuracy than Zero-R, that classifier is ineffective and useless.\newline
+
+Because Zero-R does not care about the feature set, it maintained its accuracy of 26.16\% (see Table~\ref{table4}) throughout the data sets.
+
+\subsection{One-R}
+One-R uses the best performing decision stump. It generates one rule for each attribute and selects the one with smallest error rate.\newline
+
+Although more advanced than Zero-R, it usually is too simple to accurately predict classes. As shown in Table~\ref{table4}, it performed almost identically as Zero-R except in Set C where it fell behind by about 5\%.\newline
+
+The reason for falling behind in Set C is relatively straight forward. One-R considers only one of the features in mind. But features in Set C - being the TF-IDF similarity score vector - was designed to be used together because similarity scores mean little by themselves and holds meaning when relatively compared together. For example,
+\[
+sim(Tweet, SE) = \langle4.24\rangle
+\]
+holds little meaning towards similarity to SE. However,
+\[
+sim(Tweet, SE, SD) = \langle4.24, 1.42\rangle
+\]
+indicates that Tweet is more similar to SE compared to SD.\newline
+
+Reasons behind exact same performance with Zero-R for other sets is not trivial. The most likely situation is that One-R is constructing a decision stump for a specific attribute which results in choosing majority class all the time. Further investigation needs to be carried out to find details.
+
+\subsection{Na{\"i}ve Bayes}
+Na{\"i}ve Bayes assumes that distribution of classes in test set is the same as the training set and each features are independent from the other. This makes variety of training set and minimizing unseen data extremely important.\newline
+
+Na{\"i}ve Bayes' common problem of over-fitting is present (see Table~\ref{NBtable}), where it performs better with the set it was trained with but less so with other sets. It's poor performance is likely due to the fact that NB performs poorly on unseen data. This could be due to features failing to capture generality of the Tweet contents or training data was inadequate and a lot of unseen data was remained.\newline
+
+The best performance was shown with Set C. This is expected since only Set C has true continuous attributes - which is a required assumption for Na{\"i}ve Bayes to work.
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|>{\centering}m{0.3in}|>{\centering}m{1in}|>{\centering\arraybackslash}m{1in}|}
+	
+      \hline
+      \textbf{Set} & \textbf{Train} & \textbf{Development}\\
+      \hline
+      \textbf{A} & 22.61\%	 & 21.86\%\\
+      \hline
+      \textbf{B} & 22.09\%	 & 19.55\%\\
+      \hline
+      \textbf{C} & 34.94\%	 & 24.71\%\\
+      \hline
+      \textbf{D} & 26.44\%	 & 23.53\%\\
+      \hline
+
+\end{tabular}
+\caption{Accuracy of NB on training and development data.}\label{NBtable}
+\end{center}
+\end{table}
+
+\subsection{Random Forest}
+Random Forest creates multiple over-fitted Decision Trees using a subset of attributes. The prediction is decided by considering all the Decision Trees' results. Random Forest performed better than both baseline methods except on Set C (see Table~\ref{table4}). The higher performance is not surprising however reason for lower performance in Set C is not trivial.\newline
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|>{\centering}m{0.3in}|>{\centering}m{1in}|>{\centering\arraybackslash}m{1in}|}
+	
+      \hline
+      \textbf{Set} & \textbf{Train} & \textbf{Development}\\
+      \hline
+      \textbf{A} & 30.08\%	 & 30.42\%\\
+      \hline
+      \textbf{B} & 25.77\%	 & 26.16\%\\
+      \hline
+      \textbf{C} & 53.53\%	 & 24.00\%\\
+      \hline
+      \textbf{D} & 30.06\%	 & 30.37\%\\
+      \hline
+
+\end{tabular}
+\caption{Accuracy of Random Forest on training and development data.}\label{RFtable}
+\end{center}
+\end{table}
+
+Random Forest did not over-fit at all for Set A, B and D (see Table~\ref{RFtable}). It's drastic difference in accuracy for Set C can be due to many factors. The most likely is that Set C was not designed to cover general cases or training data did not represent all cases. Over-fitting is unlikely based on performance on other sets. This ultimately results in poor performance in general case and therefore performing poorer than baseline methods.
+
+\section{Performance of Classifiers and Feature Sets}
+
+Overall, All classifiers except Random Forest can be considered useless purely based on the accuracy on development data. Random Forest also managed to not over-fit to training data unlike Na{\"i}ve Bayes. Therefore, Random Forest seems to be the best at classifying locations for the Tweets.\newline
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|>{\centering}m{0.3in}|>{\centering\arraybackslash}m{1.5in}|}
+	
+      \hline
+      \textbf{Set} & \textbf{Average Accuracy}\\
+      \hline
+      \textbf{A} & 26.15\%\\
+      \hline
+      \textbf{B} & 24.51\%\\
+      \hline
+      \textbf{C} & 21.03\%\\
+      \hline
+      \textbf{D} & 26.56\%\\
+      \hline
+
+\end{tabular}
+\caption{Average accuracy for each set.}\label{setAccuracy}
+\end{center}
+\end{table}
+
+Set C remains as a feature set with high potential. Not only Na{\"i}ve Bayes performed the best with it but most critically, Random Forest seemed to learn the pattern extremely well (based on Table~\ref{RFtable}). This leaves us with some possible improvements to be made. One of them would be improving variety of training data so that similarity score represents more general cases for the class.
+
+\section{Other Classifiers and Potential Improvements}
+K-Nearest Neighbour is potentially ideal classifier. In real life, new Tweets are being made consistently. K-NN's ability to add extra data on the fly will help us drastically to learn latest pattern quickly.\newline
+
+If possible, learning from more training data would be ideal. Learning from both training and development data and doing M-Cross Validation will definitely result in better accuracy however that may not reflect our performance in real test data.\newline
+
+It may be possible that training data is biased for learning general patterns, making the classifier perform poorly (and over-fitting) no matter what model is used. However, this is hard to confirm without actually going through all the training data provided. In a glance, they were filled with duplicate Tweets and advertisements. These two problems are critically important to be dealt with since duplicate Tweets will inevitably lead to being biased and advertisements are mostly unrelated to advertiser's locations (For example, A store in the Seattle can advertise towards customers in Boston, using Boston-related words).
+
+\section{Conclusion}
+Usage of Zero-R and One-R provided a suitable baseline for the classifiers and accuracy gave us sufficient information regarding classifiers' performance. Although high-volume training data was ideal with quantity, its variety and bias are left to be verified.\newline
+
+Pre-processing and tampering the training data may be required to remove noise - duplicate and advertising Tweets. This is expected to improve performance of the classifiers overall.\newline
+
+It is unclear that the feature sets used to model the Tweets were reliable. It is hard to neither accept nor reject the reliability and generality of the models. Further investigations regarding this will be ideal.
+
+
+\bibliographystyle{acl}
+\bibliography{sample}
+
+\end{document}

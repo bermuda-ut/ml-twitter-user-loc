@@ -4,7 +4,7 @@ from nltk.corpus import stopwords
 STOPS = stopwords.words('english')
 
 def filterTweet(tweet):
-    t = filterNameStop(toLowers(onlyAlpha(filterURL(tweet))))
+    t = filterNameStop(onlyAlpha(tweet))
     return t
 
 def onlyAlpha(line):
@@ -20,7 +20,7 @@ def toLowers(line):
         f += l.lower()
     return f
 
-# filter out names and stop words
+# filter out stop words
 def filterNameStop(line):
     rline = "";
     for word in line.split():
